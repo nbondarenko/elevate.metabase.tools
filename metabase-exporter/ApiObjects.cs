@@ -196,10 +196,10 @@ namespace metabase_exporter
         [JsonProperty("row")]
         public int Row { get; set; }
 
-        [JsonProperty("sizeX")]
+        [JsonProperty("size_x")]
         public int SizeX { get; set; }
 
-        [JsonProperty("sizeY")]
+        [JsonProperty("size_y")]
         public int SizeY { get; set; }
 
         /// <summary>
