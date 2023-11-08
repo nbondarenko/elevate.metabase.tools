@@ -222,6 +222,7 @@ namespace metabase_exporter
             var response = await sessionManager.Send(request);
             try
             {
+                Console.WriteLine($"Fetched dashboard {dashboardId}");
                 return JsonConvert.DeserializeObject<Dashboard>(response);
             }
             catch (JsonSerializationException e)
@@ -236,7 +237,8 @@ namespace metabase_exporter
             var response = await sessionManager.Send(request);
             try
             {
-                var databases = JsonConvert.DeserializeObject<JArray>(response);
+                var parsedResponse = JsonConvert.DeserializeObject<JObject>(response);
+                var databases = (JArray) parsedResponse["data"];
                 return databases.Select(d => new DatabaseId((int) d["id"])).ToList();
             }
             catch (JsonSerializationException e)
