@@ -28,11 +28,11 @@ namespace metabase_exporter
             Console.WriteLine("Creating collections...");
             var collectionMapping = await api.MapAndCreateCollections(state.Collections);
 
-            Console.WriteLine("Deleting all dashboards...");
-            await api.DeleteAllDashboards();
+            // Console.WriteLine("Deleting all dashboards...");
+            // await api.DeleteAllDashboards();
 
-            Console.WriteLine("Deleting all cards...");
-            await api.DeleteAllCards();
+            // Console.WriteLine("Deleting all cards...");
+            // await api.DeleteAllCards();
 
             Console.WriteLine("Creating cards...");
             var partialCardMapping = await state.Cards
