@@ -15,11 +15,12 @@ namespace metabase_exporter
         /// <summary>
         /// Export Metabase data
         /// </summary>
-        public static async Task<MetabaseState> Export(this MetabaseApi api, bool excludePersonalCollections)
+        public static async Task<MetabaseState> Export(this MetabaseApi api, bool excludePersonalCollections, int CollectionIDToExport)
         {
-            var mappedCollections = await api.GetMappedCollections(excludePersonalCollections);
+            var mappedCollections = await api.GetMappedCollections(excludePersonalCollections, CollectionIDToExport);
             var mappedCards = await api.GetMappedCards(mappedCollections.CollectionMapping);
-            var mappedDashboards = await api.GetMappedDashboards(mappedCards.CardMapping, mappedCollections.Collections);
+            // var mappedDashboards = await api.GetMappedDashboards(mappedCards.CardMapping, mappedCollections.Collections);
+            var mappedDashboards = await api.GetMappedDashboards(mappedCards.CardMapping, mappedCollections.CollectionMapping);
 
             var state = new MetabaseState
             {
@@ -32,12 +33,15 @@ namespace metabase_exporter
         }
 
         static async Task<(IReadOnlyCollection<Dashboard> Dashboards, IReadOnlyDictionary<DashboardId, DashboardId> DashboardMapping)>
-            GetMappedDashboards(this MetabaseApi api, IReadOnlyDictionary<CardId, CardId> cardMapping, IReadOnlyCollection<Collection> exportedCollections)
+            // GetMappedDashboards(this MetabaseApi api, IReadOnlyDictionary<CardId, CardId> cardMapping, IReadOnlyCollection<Collection> exportedCollections)
+            GetMappedDashboards(this MetabaseApi api, IReadOnlyDictionary<CardId, CardId> cardMapping, IReadOnlyDictionary<CollectionId, CollectionId> collectionMapping)
         {
             var dashboards = await api.GetAllDashboards();
             var nonArchivedDashboards = dashboards
                 .Where(x => x.Archived == false)
-                .Where(dashboard => dashboard.CollectionId.HasValue == false || exportedCollections.Any(collection => collection.Id == dashboard.CollectionId))
+                // .Where(dashboard => dashboard.CollectionId.HasValue == false || exportedCollections.Any(collection => collection.Id == dashboard.CollectionId))
+
+                .Where(dashboard => dashboard.CollectionId.HasValue == false || collectionMapping.ContainsKey(dashboard.CollectionId.Value))
                 .OrderBy(x => x.Id)
                 .ToArray();
             var dashboardMapping = Renumber(nonArchivedDashboards.Select(x => x.Id).ToList());
@@ -46,8 +50,17 @@ namespace metabase_exporter
                 var oldDashboardId = dashboard.Id;
                 dashboard.Id = dashboardMapping.GetOrThrow(dashboard.Id, "Dashboard not found in mapping");
                 var dashboardCardMapping = Renumber(dashboard.Cards.Select(x => x.Id).ToList());
+
+                Console.WriteLine($"Mapping dashboard {oldDashboardId} to {dashboard.Id} ({dashboard.Name})");
+
+                if (dashboard.CollectionId.HasValue)
+                {
+                    dashboard.CollectionId = collectionMapping.GetOrThrow(dashboard.CollectionId.Value, $"Collection not found in collection mapping for dashboard {dashboard.Id}");
+                }
+
                 foreach (var card in dashboard.Cards.OrderBy(x => x.Id))
                 {
+                    Console.WriteLine($"Dashboard card.Id: {card.Id}, card.cardID: {card.CardId}, row {card.Row}, column {card.Column}");
                     card.Id = dashboardCardMapping.GetOrThrow(card.Id, $"Card not found in dashboard card mapping for dashboard {oldDashboardId}");
                     if (card.CardId.HasValue)
                     {
@@ -74,7 +87,8 @@ namespace metabase_exporter
             var cards = await api.GetAllCards();
             var cardsToExport = cards
                 .Where(x => x.Archived == false)
-                .Where(x => x.CollectionId == null || collectionMapping.ContainsKey(x.CollectionId.Value))
+                .Where(x => x.CollectionId != null && collectionMapping.ContainsKey(x.CollectionId.Value))
+                // .Where(x => x.CollectionId == null || collectionMapping.ContainsKey(x.CollectionId.Value))
                 .OrderBy(x => x.Id)
                 .ToArray();
             var cardMapping = Renumber(cardsToExport.Select(x => x.Id).ToList());
@@ -99,18 +113,22 @@ namespace metabase_exporter
         }
 
         static async Task<(IReadOnlyCollection<Collection> Collections, IReadOnlyDictionary<CollectionId, CollectionId> CollectionMapping)> 
-            GetMappedCollections(this MetabaseApi api, bool excludePersonalCollections)
+            GetMappedCollections(this MetabaseApi api, bool excludePersonalCollections, int CollectionIDToExport)
         {
             var collections = await api.GetAllCollections();
+            Console.WriteLine($"Will export collection {CollectionIDToExport}");
             var collectionsToExport = collections
                 .Where(x => x.Archived == false)
-                .Where(x => excludePersonalCollections == false || x.IsPersonal() == false)
+                // .Where(x => excludePersonalCollections == false || x.IsPersonal() == false)
+                .Where(x => CollectionIDToExport == 0 || x.Id.Value == CollectionIDToExport)
                 .OrderBy(x => x.Id)
                 .ToArray();
             var collectionMapping = Renumber(collectionsToExport.Select(x => x.Id).ToList());
             foreach (var collection in collectionsToExport)
             {
+                var oldCollectionId = collection.Id;
                 collection.Id = collectionMapping.GetOrThrow(collection.Id, "Collection not found in collection mapping");
+                Console.WriteLine($"Mapping collection {oldCollectionId} to {collection.Id} ({collection.Name})");
             }
             return (collectionsToExport, collectionMapping);
         }
