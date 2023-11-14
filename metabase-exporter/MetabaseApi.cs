@@ -86,21 +86,22 @@ namespace metabase_exporter
 
         public async Task AddCardsToDashboard(DashboardId dashboardId, IReadOnlyList<DashboardCard> cards)
         {
-            var dashboardCardMapping = await cards
-                .Where(card => card.CardId.HasValue)
-                .Traverse(async card => {
-                    var dashboardCard = await AddCardToDashboard(cardId: card.CardId.Value, dashboardId: dashboardId);
-                    return new
-                    {
-                        stateDashboardCard = card, 
-                        newDashboardCard = dashboardCard.Id
-                    };
-                });
+            // Not needed after Metabase update to 0.47 version. Ref: https://www.metabase.com/releases/Metabase-47
+            // var dashboardCardMapping = await cards
+            //     .Where(card => card.CardId.HasValue)
+            //     .Traverse(async card => {
+            //         var dashboardCard = await AddCardToDashboard(cardId: card.CardId.Value, dashboardId: dashboardId);
+            //         return new
+            //         {
+            //             stateDashboardCard = card, 
+            //             newDashboardCard = dashboardCard.Id
+            //         };
+            //     });
 
-            foreach (var card in dashboardCardMapping)
-            {
-                card.stateDashboardCard.Id = card.newDashboardCard;
-            }
+            // foreach (var card in dashboardCardMapping)
+            // {
+            //     card.stateDashboardCard.Id = card.newDashboardCard;
+            // }
 
             await PutCardsToDashboard(dashboardId, cards);
         }
